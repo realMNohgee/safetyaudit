@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SafetyAudit — OSHA Jobsite Safety</title>
+<style>
+:root {
+  --bg: #0d1117; --card: #161b22; --border: #30363d;
+  --orange: #e74c3c; --accent: #e74c3c; --dim: #8b949e;
+  --text: #c9d1d9; --green: #3fb950; --red: #f85149;
+  --amber: #d2991d; --blue: #58a6ff; --mono: 'SF Mono','Fira Code','Cascadia Code',monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; min-height: 100vh; padding: 2rem 1rem 300px; }
+.container { max-width: 900px; margin: 0 auto; }
+header { text-align: center; margin-bottom: 2rem; }
+header h1 { font-size: 2rem; color: var(--orange); font-family: var(--mono); margin-bottom: 0.25rem; }
+header .sub { color: var(--dim); font-size: 0.9rem; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.card h2 { font-size: 1.1rem; color: var(--orange); margin-bottom: 1rem; font-family: var(--mono); }
+label { display: block; font-size: 0.8rem; color: var(--dim); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px; }
+select { width: 100%; padding: 0.5rem 0.75rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: var(--mono); font-size: 0.9rem; }
+select:focus { outline: none; border-color: var(--orange); }
+
+/* Checklist */
+.checklist-cat { margin-bottom: 1rem; }
+.checklist-cat h3 { font-size: 0.9rem; color: var(--orange); margin-bottom: 0.5rem; font-family: var(--mono); padding-bottom: 0.25rem; border-bottom: 1px solid var(--border); }
+.check-item { display: flex; align-items: flex-start; padding: 0.35rem 0; font-size: 0.85rem; cursor: pointer; }
+.check-item input[type=checkbox] { margin-right: 0.6rem; margin-top: 0.2rem; accent-color: var(--orange); width: auto; }
+.check-item .item-text { flex: 1; }
+.check-item.critical .item-text { font-weight: bold; }
+.check-item.critical .item-text::after { content: ' ⚠ CRITICAL'; color: var(--red); font-size: 0.7rem; }
+.check-item.checked .item-text { text-decoration: line-through; color: var(--dim); }
+
+/* PPE card */
+.ppe-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ppe-badge { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: var(--orange); padding: 0.25rem 0.65rem; border-radius: 20px; font-size: 0.78rem; font-family: var(--mono); }
+
+/* Progress bar */
+.progress-wrap { margin-bottom: 1rem; }
+.progress-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem; color: var(--dim); }
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--orange); border-radius: 3px; transition: width 0.3s; }
+
+/* Trend chart */
+.bar-row { display: flex; align-items: center; margin-bottom: 0.5rem; font-size: 0.82rem; }
+.bar-label { width: 180px; color: var(--text); font-family: var(--mono); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { flex: 1; height: 20px; background: var(--bg); border-radius: 3px; overflow: hidden; margin: 0 0.5rem; }
+.bar-fill { height: 100%; background: var(--orange); border-radius: 3px; transition: width 0.5s; display: flex; align-items: center; padding-left: 0.5rem; }
+.bar-fill.pattern { background: var(--red); }
+.bar-count { color: var(--dim); width: 30px; text-align: right; font-family: var(--mono); font-size: 0.78rem; }
+
+/* Audit log table */
+.log-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.78rem; }
+.log-table th { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 2px solid var(--border); color: var(--orange); font-size: 0.75rem; text-transform: uppercase; }
+.log-table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--border); }
+.log-table .issues { color: var(--red); }
+
+/* Terminal */
+.terminal { background: #0a0e14; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); width: 95%; max-width: 900px; z-index: 10; }
+.terminal-bar { background: #161b22; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border); }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.dot.red { background: var(--red); }
+.dot.yellow { background: var(--amber); }
+.dot.green { background: var(--green); }
+.terminal-bar .title { color: var(--dim); font-family: var(--mono); font-size: 0.8rem; margin-left: 0.5rem; }
+.terminal-body { padding: 1rem; font-family: var(--mono); font-size: 0.8rem; line-height: 1.6; }
+.terminal-body .line { margin-bottom: 0.15rem; }
+.terminal-body .divider { color: var(--border); }
+.terminal-body .link { color: var(--blue); text-decoration: none; }
+.terminal-body .link:hover { text-decoration: underline; }
+
+.tab-bar { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+.tab { padding: 0.5rem 1.25rem; cursor: pointer; color: var(--dim); font-family: var(--mono); font-size: 0.85rem; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--orange); border-bottom-color: var(--orange); }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.crew-row { display: flex; gap: 1rem; align-items: end; margin-bottom: 1rem; }
+.crew-row .input-group { flex: 1; }
+
+.pattern-badge { display: inline-block; background: rgba(248,81,73,0.2); color: var(--red); padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.7rem; margin-left: 0.5rem; font-family: var(--mono); }
+.no-data { text-align: center; color: var(--dim); padding: 2rem; font-family: var(--mono); }
+
+@media (max-width: 600px) {
+  .crew-row { flex-direction: column; }
+  .bar-label { width: 120px; }
+  body { padding: 1rem 0.5rem 300px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🦺 SafetyAudit</h1>
+    <div class="sub">OSHA 1926 jobsite safety checklists &middot; audit tracking &middot; violation trends</div>
+  </header>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('checklist')">Checklist</div>
+    <div class="tab" onclick="switchTab('trends')">Trends</div>
+    <div class="tab" onclick="switchTab('log')">Audit Log</div>
+  </div>
+
+  <!-- CHECKLIST TAB -->
+  <div class="tab-panel active" id="panel-checklist">
+    <div class="card">
+      <h2>🔍 Select Job Type</h2>
+      <div class="crew-row">
+        <div class="input-group">
+          <label>Job Type</label>
+          <select id="job-type" onchange="loadChecklist()">
+            <option value="residential_framing">Residential Framing</option>
+            <option value="commercial_roofing">Commercial Roofing</option>
+            <option value="electrical_rough_in">Electrical Rough-In</option>
+            <option value="concrete_foundation">Concrete Foundation</option>
+            <option value="excavation_trenching">Excavation & Trenching</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Crew Size</label>
+          <select id="crew-size" onchange="loadChecklist()">
+            <option>1</option><option>2</option><option>3</option><option selected>4</option>
+            <option>5</option><option>6</option><option>8</option><option>10</option>
+            <option>15</option><option>20</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Phase</label>
+          <select id="phase" onchange="loadChecklist()">
+            <option>active</option><option>prep</option><option>closeout</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🦺 Required PPE</h2>
+      <div class="ppe-badges" id="ppe-badges"></div>
+    </div>
+
+    <div class="card">
+      <h2>✅ Safety Checklist</h2>
+      <div class="progress-wrap">
+        <div class="progress-label"><span>Progress</span><span id="progress-text">0/0</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+      <div id="checklist-items"></div>
+    </div>
+  </div>
+
+  <!-- TRENDS TAB -->
+  <div class="tab-panel" id="panel-trends">
+    <div class="card">
+      <h2>📈 Violation Trends</h2>
+      <p style="color:var(--dim);font-size:0.85rem;margin-bottom:1rem">
+        Simulated audit data showing top 7 recurring violations. Items with 3+ occurrences are flagged as patterns.
+      </p>
+      <div id="trend-chart"></div>
+    </div>
+    <div class="card">
+      <h2>📊 Audits by Job Type</h2>
+      <div id="audit-by-type"></div>
+    </div>
+  </div>
+
+  <!-- AUDIT LOG TAB -->
+  <div class="tab-panel" id="panel-log">
+    <div class="card">
+      <h2>📋 Audit History</h2>
+      <div style="overflow-x:auto">
+        <table class="log-table">
+          <thead><tr><th>Date</th><th>Job Type</th><th>Crew</th><th>Phase</th><th>Issues Found</th></tr></thead>
+          <tbody id="log-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TERMINAL END CARD -->
+<div class="terminal">
+  <div class="terminal-bar">
+    <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+    <span class="title">safetyaudit — zsh</span>
+  </div>
+  <div class="terminal-body">
+    <div class="line"><span style="color:var(--green)">➜</span> <span style="color:var(--orange)">safetyaudit</span> check --type excavation_trenching --crew 5</div>
+    <div class="line divider">─────────────────────────────</div>
+    <div class="line">🦺 <strong>SafetyAudit</strong> — OSHA-compliant jobsite safety checklist generator & tracker</div>
+    <div class="line">zero dependencies &middot; Python stdlib &middot; runs anywhere</div>
+    <div class="line">&nbsp;</div>
+    <div class="line"><span style="color:var(--green)">▸</span> github: <a class="link" href="https://github.com/realMNohgee/safetyaudit" target="_blank">github.com/realMNohgee/safetyaudit</a></div>
+    <div class="line"><span style="color:var(--green)">▸</span> marketplace: <a class="link" href="https://hermtica.com/marketplace" target="_blank">hermtica.com/marketplace</a></div>
+  </div>
+</div>
+
+<script>
+var CHECKLISTS = {
+  residential_framing: {
+    ppe: ["hard hat","safety glasses","steel-toe boots","gloves","hi-vis vest"],
+    hazards: [
+      {cat:"Fall Protection",items:["guardrails at openings >6ft","PFAS harness inspected","ladder tied off and 3ft above landing","hole covers secured"]},
+      {cat:"Material Handling",items:["lumber stacked flat, max 16ft high","nails removed from scrap","pneumatic hoses secured, whip checks on","nail gun safety engaged when not firing"]},
+      {cat:"Electrical",items:["GFCI protection on temp power","cords not across walkways","panel covers in place","extension cords 12ga minimum"]}
+    ]
+  },
+  commercial_roofing: {
+    ppe: ["hard hat","safety glasses","steel-toe boots","gloves","knee pads","harness"],
+    hazards: [
+      {cat:"Fall Protection",items:["warning line at 6ft from edge","PFAS anchor points rated 5000lb","skylight covers installed","ladder tied off at top and bottom"]},
+      {cat:"Heat Safety",items:["water station on roof","shade tent available","heat index monitored","buddy system active"]},
+      {cat:"Material Handling",items:["kettle placed on non-combustible surface","fire extinguisher within 25ft","material hoisted, not carried up ladder"]}
+    ]
+  },
+  electrical_rough_in: {
+    ppe: ["hard hat","safety glasses","steel-toe boots","voltage-rated gloves"],
+    hazards: [
+      {cat:"Electrical Safety",items:["LOTO verified on all circuits","panel dead-front confirmed","voltage tester working, checked on known live","NRTL-listed tools only"]},
+      {cat:"Confined Space",items:["atmosphere tested before entry","attendant present at entrance","retrieval tripod setup","ventilation running for 5min prior"]}
+    ]
+  },
+  concrete_foundation: {
+    ppe: ["hard hat","safety glasses","steel-toe boots","rubber boots","chemical-resistant gloves","hi-vis vest","face shield (pouring)"],
+    hazards: [
+      {cat:"Excavation & Trenching",items:["shoring/trench box in place if >5ft deep","spoil pile at least 2ft from edge","ladder every 25ft in trench","competent person inspected before shift"]},
+      {cat:"Concrete Placement",items:["pump truck outriggers fully extended on pads","washout area designated and lined","vibrator cords GFCI-protected","wet concrete splash PPE in use"]},
+      {cat:"Rebar & Formwork",items:["rebar caps on all protruding bars","form ties rated for pour pressure","bracing checked after each truck load","impalement hazards capped or guarded"]}
+    ]
+  },
+  excavation_trenching: {
+    ppe: ["hard hat","safety glasses","steel-toe boots","hi-vis vest","gloves","hearing protection (near equipment)"],
+    hazards: [
+      {cat:"Trench Safety",items:["protective system for trench >5ft (slope/shield/shore)","competent person classified soil type (A/B/C)","daily inspection documented before entry","no water accumulation in trench","ladder within 25ft of all workers"]},
+      {cat:"Underground Utilities",items:["811 called and utilities marked","hand-dig within 2ft of marked lines","overhead power lines de-energized or flagged","gas line shut-off valve identified"]},
+      {cat:"Heavy Equipment",items:["swing radius barricaded","spotter assigned for backing","equipment inspections current (daily checklist)","no workers under suspended loads"]}
+    ]
+  }
+};
+
+// Simulated audit log for trends + log viewer
+var SIM_AUDITS = [
+  {date:"2026-07-31",type:"residential_framing",crew:4,phase:"active",issues:["guardrail missing","hole cover unsecured"]},
+  {date:"2026-07-30",type:"residential_framing",crew:3,phase:"active",issues:["guardrail missing","ladder untied"]},
+  {date:"2026-07-29",type:"commercial_roofing",crew:4,phase:"active",issues:["guardrail missing","no water station"]},
+  {date:"2026-07-28",type:"concrete_foundation",crew:5,phase:"active",issues:["guardrail missing","trench box missing"]},
+  {date:"2026-07-27",type:"excavation_trenching",crew:4,phase:"active",issues:["no ladder in trench","811 not called"]},
+  {date:"2026-07-26",type:"electrical_rough_in",crew:2,phase:"active",issues:["LOTO not verified","missing GFCI"]},
+  {date:"2026-07-25",type:"residential_framing",crew:5,phase:"active",issues:["hard hat missing","hole cover unsecured"]},
+  {date:"2026-07-24",type:"excavation_trenching",crew:3,phase:"active",issues:["no ladder in trench"]},
+  {date:"2026-07-23",type:"commercial_roofing",crew:5,phase:"active",issues:["harness not inspected","no water station"]},
+  {date:"2026-07-22",type:"concrete_foundation",crew:4,phase:"active",issues:["rebar caps missing"]},
+  {date:"2026-07-21",type:"electrical_rough_in",crew:3,phase:"active",issues:["LOTO not verified","missing GFCI","panel cover off"]},
+  {date:"2026-07-20",type:"residential_framing",crew:3,phase:"closeout",issues:["nail gun safety off"]},
+];
+
+function loadChecklist() {
+  var type = document.getElementById('job-type').value;
+  var cl = CHECKLISTS[type];
+  if (!cl) return;
+
+  // PPE badges
+  document.getElementById('ppe-badges').innerHTML = cl.ppe.map(function(p){ return '<span class="ppe-badge">'+p+'<'+'/span>'; }).join('');
+
+  // Build checklist
+  var items = [];
+  var totalItems = 0;
+  cl.hazards.forEach(function(cat) {
+    cat.items.forEach(function(item, i) {
+      items.push({cat: cat.cat, text: item, critical: i < 3});
+      totalItems++;
+    });
+  });
+
+  // Group by category
+  var byCat = {};
+  cl.hazards.forEach(function(cat) {
+    var catItems = cat.items.map(function(item, i) {
+      return {text: item, critical: i < 3};
+    });
+    byCat[cat.cat] = catItems;
+  });
+
+  var html = '';
+  Object.keys(byCat).forEach(function(catName) {
+    html += '<div class="checklist-cat"><h3>[' + catName + ']<'+'/h3>';
+    byCat[catName].forEach(function(item, idx) {
+      var critClass = item.critical ? ' critical' : '';
+      html += '<label class="check-item'+critClass+'" onclick="updateProgress()">'+
+        '<input type="checkbox" onchange="updateProgress()">'+
+        '<span class="item-text">'+item.text+'<'+'/span>'+
+        '<'+'/label>';
+    });
+    html += '<'+'/div>';
+  });
+  document.getElementById('checklist-items').innerHTML = html;
+  updateProgress();
+}
+
+function updateProgress() {
+  var checks = document.querySelectorAll('#checklist-items input[type=checkbox]');
+  var checked = document.querySelectorAll('#checklist-items input[type=checkbox]:checked');
+  var total = checks.length;
+  var done = checked.length;
+  var pct = total > 0 ? (done / total * 100) : 0;
+  document.getElementById('progress-text').textContent = done + '/' + total;
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  // Mark checked items
+  checks.forEach(function(cb) {
+    var label = cb.closest('.check-item');
+    if (label) {
+      if (cb.checked) label.classList.add('checked');
+      else label.classList.remove('checked');
+    }
+  });
+}
+
+function loadTrends() {
+  // Compute violation counts from simulated audits
+  var counter = {};
+  var jobCounter = {};
+  SIM_AUDITS.forEach(function(a) {
+    jobCounter[a.type] = (jobCounter[a.type] || 0) + 1;
+    a.issues.forEach(function(iss) {
+      counter[iss] = (counter[iss] || 0) + 1;
+    });
+  });
+
+  var sorted = Object.entries(counter).sort(function(a,b){ return b[1] - a[1]; });
+  var maxCount = sorted.length > 0 ? sorted[0][1] : 1;
+
+  var html = '';
+  sorted.forEach(function(entry) {
+    var violation = entry[0], count = entry[1];
+    var pct = (count / maxCount * 100);
+    var patternClass = count >= 3 ? ' pattern' : '';
+    var patternBadge = count >= 3 ? '<span class="pattern-badge">PATTERN<'+'/span>' : '';
+    html += '<div class="bar-row">'+
+      '<span class="bar-label">'+violation+patternBadge+'<'+'/span>'+
+      '<div class="bar-track"><div class="bar-fill'+patternClass+'" style="width:'+pct+'%"></div><'+'/div>'+
+      '<span class="bar-count">'+count+'x<'+'/span>'+
+      '<'+'/div>';
+  });
+  if (!html) html = '<div class="no-data">No violations recorded. Run an audit to see trends.<'+'/div>';
+  document.getElementById('trend-chart').innerHTML = html;
+
+  // Audits by type
+  var typeSorted = Object.entries(jobCounter).sort(function(a,b){ return b[1] - a[1]; });
+  var typeMax = typeSorted.length > 0 ? typeSorted[0][1] : 1;
+  var typeHtml = '';
+  typeSorted.forEach(function(entry) {
+    var pct = (entry[1] / typeMax * 100);
+    typeHtml += '<div class="bar-row">'+
+      '<span class="bar-label">'+entry[0].replace(/_/g,' ')+'<'+'/span>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:var(--blue)"></div><'+'/div>'+
+      '<span class="bar-count">'+entry[1]+'x<'+'/span>'+
+      '<'+'/div>';
+  });
+  document.getElementById('audit-by-type').innerHTML = typeHtml;
+}
+
+function loadAuditLog() {
+  var html = '';
+  SIM_AUDITS.forEach(function(a) {
+    var issues = a.issues.length > 0 ? a.issues.join(', ') : 'none';
+    var issuesClass = a.issues.length > 0 ? ' issues' : '';
+    html += '<tr>'+
+      '<td>'+a.date+'<'+'/td>'+
+      '<td>'+a.type.replace(/_/g,' ')+'<'+'/td>'+
+      '<td>'+a.crew+'<'+'/td>'+
+      '<td>'+a.phase+'<'+'/td>'+
+      '<td class="'+issuesClass+'">'+issues+'<'+'/td>'+
+      '<'+'/tr>';
+  });
+  document.getElementById('log-body').innerHTML = html;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  event.target.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'trends') loadTrends();
+  if (tab === 'log') loadAuditLog();
+}
+
+// Initialize
+loadChecklist();
+loadTrends();
+loadAuditLog();
+</script>
+</body>
+</html>
