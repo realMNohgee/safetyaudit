@@ -1,4 +1,5 @@
 # SafetyAudit 🦺
+![CI](https://github.com/realMNohgee/safetyaudit/actions/workflows/ci.yml/badge.svg) ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 **OSHA-compliant jobsite safety checklist generator & tracker.** Zero dependencies, pure Python stdlib.
 
